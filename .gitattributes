@@ -1,0 +1,28 @@
+# Normalize text files
+* text=auto
+
+# Project text files use LF
+*.py text eol=lf
+*.toml text eol=lf
+*.lock text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.gitignore text eol=lf
+*.gitattributes text eol=lf
+
+# Windows scripts
+*.ps1 text eol=crlf
+
+# Binary business files
+*.xlsx binary
+*.xls binary
+*.xlsm binary
+*.xlsb binary
+*.csv text eol=lf
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.zip binary

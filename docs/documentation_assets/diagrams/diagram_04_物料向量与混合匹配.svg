@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0L0 6L9 3z" fill="#222"/></marker><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",sans-serif;fill:#222;letter-spacing:0}.title{font-size:34px;font-weight:700}.h{font-size:23px;font-weight:700}.t{font-size:18px}.s{font-size:16px;fill:#555}.box{fill:#fff;stroke:#222;stroke-width:2}.soft{fill:#f2f2f2;stroke:#444;stroke-width:2}.line{stroke:#222;stroke-width:2.2;fill:none;marker-end:url(#a)}</style></defs>
+  <rect width="1600" height="1000" fill="#fff"/><text x="80" y="65" class="title">物料向量建库与混合匹配</text>
+  <rect x="70" y="110" width="660" height="780" class="soft"/><text x="400" y="160" text-anchor="middle" class="h">离线建库</text>
+  <rect x="170" y="200" width="460" height="62" class="box"/><text x="400" y="240" text-anchor="middle" class="t">物料 CSV → 字段规范化</text><path d="M400 262V305" class="line"/>
+  <rect x="170" y="305" width="460" height="62" class="box"/><text x="400" y="345" text-anchor="middle" class="t">embedding_text</text><path d="M400 367V410" class="line"/>
+  <rect x="170" y="410" width="460" height="62" class="box"/><text x="400" y="450" text-anchor="middle" class="t">BGE-M3 文本向量</text><path d="M400 472V515" class="line"/>
+  <rect x="170" y="515" width="460" height="62" class="box"/><text x="400" y="555" text-anchor="middle" class="t">L2 normalized vector</text><path d="M400 577V620" class="line"/>
+  <rect x="170" y="620" width="460" height="80" class="box"/><text x="400" y="655" text-anchor="middle" class="t">FAISS IndexFlatIP</text><text x="400" y="682" text-anchor="middle" class="s">向量近邻索引，不是业务数据库</text><path d="M400 700V743" class="line"/>
+  <rect x="170" y="743" width="460" height="72" class="box"/><text x="400" y="785" text-anchor="middle" class="t">mapping / manifest</text>
+  <rect x="870" y="110" width="660" height="780" class="soft"/><text x="1200" y="160" text-anchor="middle" class="h">订单查询</text>
+  <rect x="970" y="200" width="460" height="62" class="box"/><text x="1200" y="240" text-anchor="middle" class="t">订单业务字段 → query text</text><path d="M1200 262V305" class="line"/>
+  <rect x="970" y="305" width="460" height="62" class="box"/><text x="1200" y="345" text-anchor="middle" class="t">BGE-M3 query vector</text><path d="M1200 367V410" class="line"/>
+  <rect x="930" y="410" width="250" height="72" class="box"/><text x="1055" y="442" text-anchor="middle" class="t">FAISS</text><text x="1055" y="468" text-anchor="middle" class="s">dense recall</text>
+  <rect x="1220" y="410" width="250" height="72" class="box"/><text x="1345" y="442" text-anchor="middle" class="t">SQLite</text><text x="1345" y="468" text-anchor="middle" class="s">structured recall</text>
+  <path d="M1055 482V525H1200V555" class="line"/><path d="M1345 482V525H1200V555" class="line"/>
+  <rect x="970" y="555" width="460" height="62" class="box"/><text x="1200" y="595" text-anchor="middle" class="t">merge / deduplicate</text><path d="M1200 617V650" class="line"/>
+  <rect x="970" y="650" width="460" height="70" class="box"/><text x="1200" y="682" text-anchor="middle" class="t">字段比较 + hard conflict filtering</text><text x="1200" y="707" text-anchor="middle" class="s">hybrid / prototype score</text><path d="M1200 720V755" class="line"/>
+  <rect x="970" y="755" width="460" height="70" class="box"/><text x="1200" y="797" text-anchor="middle" class="t">Top candidates → 正式编码 / 参考分数</text>
+  <rect x="410" y="920" width="780" height="55" class="box"/><text x="800" y="955" text-anchor="middle" class="h">AI 不生成 ERP 物料编码</text>
+</svg>

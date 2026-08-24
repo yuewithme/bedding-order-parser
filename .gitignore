@@ -1,0 +1,61 @@
+# Python environment
+/.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Test cache
+/.pytest_cache/
+/.coverage
+/htmlcov/
+
+# Local environment
+/.env
+/.env.*
+!/.env.example
+
+# Python package build artifacts
+/build/
+/dist/
+/dist-onefile/
+/release/
+/*.spec
+*.egg-info/
+
+# Input business files
+/data/input/*
+!/data/input/.gitkeep
+!/data/input/pi/
+/data/input/pi/*
+!/data/input/pi/.gitkeep
+
+# Reference and golden business files
+/data/reference/*
+!/data/reference/.gitkeep
+/data/golden/*
+!/data/golden/.gitkeep
+
+# Local business source bundle
+/床品订单day1/
+
+# Generated outputs
+/data/output/*
+!/data/output/.gitkeep
+/data/output/material_vector_index/
+/data/output/material_match_prototype/
+
+# Runtime files
+/logs/
+*.log
+
+# IDE and operating system
+/.vscode/
+/.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+/data/output/material_match_review/
+/data/output/desktop_test/
+/desktop_test_output/
+/.playwright-cli/

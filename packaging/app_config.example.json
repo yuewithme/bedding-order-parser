@@ -1,0 +1,13 @@
+{
+  "project_root": "<project-root>",
+  "data_dir": "<project-root>/data",
+  "material_store": "<project-root>/data/output/material_store/material_master.sqlite3",
+  "index_dir": "<project-root>/data/output/material_vector_index",
+  "faiss_index": "<project-root>/data/output/material_vector_index/duvet_cover.faiss",
+  "faiss_mapping": "<project-root>/data/output/material_vector_index/duvet_cover_mapping.jsonl",
+  "vector_manifest": "<project-root>/data/output/material_vector_index/vector_index_manifest.json",
+  "rules_path": "<project-root>/data/reference/PI单提取规则.xlsx",
+  "styles_path": "<project-root>/data/reference/款式表_structured.xlsx",
+  "model_cache": "<huggingface-cache>",
+  "task_root": "<local-app-data>/BeddingOrderParser/tasks"
+}

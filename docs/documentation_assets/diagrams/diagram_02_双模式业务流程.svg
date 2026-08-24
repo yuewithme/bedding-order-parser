@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0L0 6L9 3z" fill="#222"/></marker><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",sans-serif;fill:#222;letter-spacing:0}.title{font-size:34px;font-weight:700}.h{font-size:24px;font-weight:700}.t{font-size:18px}.s{font-size:16px;fill:#555}.box{fill:#fff;stroke:#222;stroke-width:2}.soft{fill:#f2f2f2;stroke:#444;stroke-width:2}.line{stroke:#222;stroke-width:2.3;fill:none;marker-end:url(#a)}</style></defs>
+  <rect width="1600" height="1000" fill="#fff"/><text x="80" y="65" class="title">双模式业务流程泳道</text>
+  <rect x="620" y="95" width="360" height="65" rx="4" class="soft"/><text x="800" y="136" text-anchor="middle" class="h">Excel 订单</text>
+  <path d="M800 160V195H410V225" class="line"/><path d="M800 195H1190V225" class="line"/>
+  <text x="410" y="205" text-anchor="middle" class="h">Standard</text><text x="1190" y="205" text-anchor="middle" class="h">AI Enhanced</text>
+  <rect x="130" y="225" width="560" height="320" rx="4" class="soft"/><text x="410" y="275" text-anchor="middle" class="h">Python 规则主解析</text><path d="M410 295V335" class="line"/><rect x="235" y="335" width="350" height="65" class="box"/><text x="410" y="375" text-anchor="middle" class="t">Standard 业务字段</text><path d="M410 400V440" class="line"/><text x="410" y="470" text-anchor="middle" class="t">本地确定性结果</text><text x="410" y="505" text-anchor="middle" class="s">可选：单记录 AI 复核 Sidecar</text>
+  <rect x="910" y="225" width="560" height="320" rx="4" class="soft"/><text x="1190" y="270" text-anchor="middle" class="t">Preprocessing → Structure → Extraction Units</text><path d="M1190 290V325" class="line"/><text x="1190" y="355" text-anchor="middle" class="t">Ark Candidates + Evidence Binding</text><path d="M1190 375V410" class="line"/><text x="1190" y="440" text-anchor="middle" class="t">Python Shadow → AI-first Resolution</text><path d="M1190 460V492" class="line"/><text x="1190" y="520" text-anchor="middle" class="s">Review 可发布 · Revision 仅重跑本地下游</text>
+  <path d="M410 545V605H800V645" class="line"/><path d="M1190 545V605H800V645" class="line"/>
+  <rect x="250" y="645" width="1100" height="72" class="box"/><text x="800" y="690" text-anchor="middle" class="h">Dictionary Validation → MaterialMatcher</text><path d="M800 717V760" class="line"/>
+  <rect x="405" y="760" width="790" height="68" class="soft"/><text x="800" y="803" text-anchor="middle" class="h">固定 20 字段</text><path d="M800 828V870" class="line"/>
+  <rect x="405" y="870" width="790" height="68" class="box"/><text x="800" y="912" text-anchor="middle" class="h">五类 JSON → 结果页 / 下载</text>
+  <text x="410" y="958" text-anchor="middle" class="s">Standard：可下载完整结果 ZIP</text>
+  <text x="80" y="985" class="s">两种模式共享下游合同，但主值选择语义相互隔离。</text>
+</svg>
