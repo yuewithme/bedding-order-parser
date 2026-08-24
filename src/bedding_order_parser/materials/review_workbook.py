@@ -96,6 +96,7 @@ MATERIAL_INDEX_HEADERS = [
 REVIEW_CONCLUSIONS = [
     "推荐编码正确",
     "Top候选中其他编码正确",
+    "Top候选外编码正确",
     "物料库不存在对应物料",
     "订单字段解析错误",
     "物料主数据有误",
@@ -688,5 +689,4 @@ def _field_value(fields: dict[str, Any], field_name: str, key: str) -> str:
 
 def _dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
-
 

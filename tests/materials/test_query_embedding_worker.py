@@ -40,8 +40,9 @@ class FakeAdapter:
 
     def encode(self, texts: Sequence[str], *, batch_size: int) -> np.ndarray:
         self.calls.append((list(texts), batch_size))
-        vector = np.zeros((1, DIMENSION), dtype=np.float32)
-        vector[0, len(self.calls) - 1] = 1.0
+        vector = np.zeros((len(texts), DIMENSION), dtype=np.float32)
+        for index in range(len(texts)):
+            vector[index, index] = 1.0
         return vector
 
 
@@ -81,8 +82,27 @@ def test_worker_writes_ordered_normalized_float32_vectors(tmp_path: Path) -> Non
     assert array.dtype == np.float32
     assert array.shape == (2, DIMENSION)
     assert np.allclose(np.linalg.norm(array, axis=1), 1.0)
-    assert FakeAdapter.calls == [(["first"], 1), (["second"], 1)]
+    assert FakeAdapter.calls == [(["first", "second"], 2)]
+    assert metadata["timings"]["model_load_seconds"] >= 0
+    assert metadata["timings"]["encoding_seconds"] >= 0
+    assert metadata["timings"]["vector_write_seconds"] >= 0
+    assert metadata["timings"]["total_seconds"] == metadata["elapsed_seconds"]
     assert not list(tmp_path.glob("*.tmp"))
+
+
+def test_worker_splits_large_query_sets_into_bounded_microbatches(tmp_path: Path) -> None:
+    FakeAdapter.calls = []
+    request = tmp_path / "request.json"
+    response = tmp_path / "response.json"
+    vectors = tmp_path / "vectors.npy"
+    texts = [f"query-{index}" for index in range(10)]
+    request.write_text(json.dumps(request_payload(texts)), encoding="utf-8")
+
+    metadata = run_worker(request, response, vectors, adapter_factory=FakeAdapter)
+
+    assert metadata["completed_query_count"] == 10
+    assert [len(call[0]) for call in FakeAdapter.calls] == [8, 2]
+    assert [call[1] for call in FakeAdapter.calls] == [8, 2]
 
 
 def test_worker_rejects_wrong_schema_without_loading_adapter(tmp_path: Path) -> None:
@@ -109,6 +129,36 @@ def test_worker_source_has_no_faiss_or_sqlite_dependency() -> None:
     assert "vector_index" not in source
     assert "faiss" not in source.lower()
     assert "sqlite" not in source.lower()
+
+
+def test_worker_command_uses_python_module_in_source_runtime(tmp_path: Path) -> None:
+    executable = tmp_path / "python.exe"
+    command = runner._build_worker_command(
+        executable,
+        tmp_path / "request.json",
+        tmp_path / "response.json",
+        tmp_path / "vectors.npy",
+        frozen=False,
+    )
+
+    assert command[:3] == [
+        str(executable),
+        "-m",
+        "bedding_order_parser.materials.query_embedding_worker",
+    ]
+
+
+def test_worker_command_uses_frozen_entrypoint_switch(tmp_path: Path) -> None:
+    executable = tmp_path / "订单解析助手.exe"
+    command = runner._build_worker_command(
+        executable,
+        tmp_path / "request.json",
+        tmp_path / "response.json",
+        tmp_path / "vectors.npy",
+        frozen=True,
+    )
+
+    assert command[:2] == [str(executable), "--embedding-worker"]
 
 
 def _write_fake_worker(tmp_path: Path, mode: str) -> Path:
@@ -141,7 +191,13 @@ def _write_fake_worker(tmp_path: Path, mode: str) -> Path:
                 "last_completed_query_id": "",
                 "active_query_id": "0",
                 "error_type": "", "error_summary": "",
-                "traceback_summary": []
+                "traceback_summary": [],
+                "timings": {{
+                    "model_load_seconds": 0.1,
+                    "encoding_seconds": 0.2,
+                    "vector_write_seconds": 0.01,
+                    "total_seconds": 0.4
+                }}
             }}
             Path(args.response).write_text(json.dumps(response), encoding="utf-8")
             if mode == "no_ack":
@@ -251,6 +307,12 @@ def test_runner_completes_after_worker_exit_and_cleans_runtime(
     assert result.worker_pid == int(pid_file.read_text(encoding="utf-8"))
     assert result.vectors.shape == (2, DIMENSION)
     assert result.vectors.dtype == np.float32
+    assert result.diagnostics["attempts"][0]["worker_timings"] == {
+        "model_load_seconds": 0.1,
+        "encoding_seconds": 0.2,
+        "vector_write_seconds": 0.01,
+        "total_seconds": 0.4,
+    }
     assert list(runtime.iterdir()) == []
 
 

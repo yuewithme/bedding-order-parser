@@ -5,9 +5,16 @@ import sqlite3
 from collections import Counter
 from pathlib import Path
 
+import pytest
 from openpyxl import load_workbook
 
+from bedding_order_parser.materials import review_metrics
 from bedding_order_parser.materials.loader import compute_sha256
+from bedding_order_parser.materials.review_metrics import (
+    ReviewMetricsError,
+    evaluate_review_workbook,
+    write_review_metrics,
+)
 from bedding_order_parser.materials.review_validator import validate_review_workbook
 from bedding_order_parser.materials.review_workbook import (
     CANDIDATE_HEADERS,
@@ -318,3 +325,120 @@ def test_validate_review_workbook_rejects_duplicate_and_missing_audit_ids(tmp_pa
     messages = [issue.message for issue in result.errors]
     assert any("重复" in message for message in messages)
     assert any("缺失" in message for message in messages)
+
+
+def test_evaluate_review_workbook_reports_rank_metrics_without_business_values(tmp_path) -> None:
+    records = [
+        record(1, "unique_best_candidate", [candidate("MAT-1"), candidate("MAT-2", rank=2)]),
+        record(2, "unique_best_candidate", [candidate("MAT-1"), candidate("MAT-2", rank=2)]),
+        record(3, "unique_best_candidate", [candidate("MAT-1"), candidate("MAT-2", rank=2)]),
+        record(4, "no_candidate", []),
+        record(5, "unique_best_candidate", [candidate("MAT-3")]),
+    ]
+    candidates_path, summary_path, store, workbook = write_payloads(tmp_path, records)
+    build_review_workbook(candidates_path, summary_path, store, workbook)
+    wb = load_workbook(workbook)
+    try:
+        review = wb[REVIEW_SHEET]
+        review["T2"] = "MAT-1"
+        review["U2"] = "推荐编码正确"
+        review["T3"] = "MAT-2"
+        review["U3"] = "Top候选中其他编码正确"
+        review["T4"] = "MAT-3"
+        review["U4"] = "Top候选外编码正确"
+        review["U5"] = "物料库不存在对应物料"
+        wb.save(workbook)
+    finally:
+        wb.close()
+
+    result = evaluate_review_workbook(workbook, store)
+    payload = result.to_dict()
+
+    assert payload["schema_version"] == "1.0"
+    assert payload["counts"] == {
+        "total_rows": 5,
+        "reviewed_rows": 4,
+        "positive_truth_rows": 3,
+        "no_material_truth_rows": 1,
+        "excluded_rows": 0,
+        "unreviewed_rows": 1,
+    }
+    assert payload["ranking"] == {
+        "denominator": 3,
+        "top1_hits": 1,
+        "top3_hits": 2,
+        "top10_hits": 2,
+        "outside_top10": 1,
+        "top1_rate": 1 / 3,
+        "top3_rate": 2 / 3,
+        "top10_rate": 2 / 3,
+    }
+    assert payload["no_material"] == {
+        "denominator": 1,
+        "no_recommendation_hits": 1,
+        "false_recommendations": 0,
+        "no_recommendation_rate": 1.0,
+    }
+    serialized = json.dumps(payload, ensure_ascii=False)
+    assert "MAT-1" not in serialized
+    assert "MAT-2" not in serialized
+    assert "MAT-3" not in serialized
+
+    output = tmp_path / "review_metrics.json"
+    written = write_review_metrics(result, output)
+    assert written == output.resolve()
+    assert json.loads(output.read_text(encoding="utf-8")) == payload
+    with pytest.raises(ReviewMetricsError, match="already exists"):
+        write_review_metrics(result, output)
+
+
+def test_evaluate_review_workbook_rejects_invalid_truth_labels(tmp_path) -> None:
+    records = [record(1, "unique_best_candidate", [candidate("MAT-1")])]
+    candidates_path, summary_path, store, workbook = write_payloads(tmp_path, records)
+    build_review_workbook(candidates_path, summary_path, store, workbook)
+    wb = load_workbook(workbook)
+    try:
+        review = wb[REVIEW_SHEET]
+        review["T2"] = "MAT-3"
+        review["U2"] = "Top候选中其他编码正确"
+        wb.save(workbook)
+    finally:
+        wb.close()
+
+    with pytest.raises(ReviewMetricsError, match="validation failed"):
+        evaluate_review_workbook(workbook, store)
+
+
+def test_evaluate_review_workbook_rejects_change_after_validation(
+    tmp_path, monkeypatch
+) -> None:
+    records = [record(1, "unique_best_candidate", [candidate("MAT-1")])]
+    candidates_path, summary_path, store, workbook = write_payloads(tmp_path, records)
+    build_review_workbook(candidates_path, summary_path, store, workbook)
+    wb = load_workbook(workbook)
+    try:
+        review = wb[REVIEW_SHEET]
+        review["T2"] = "MAT-1"
+        review["U2"] = "推荐编码正确"
+        wb.save(workbook)
+    finally:
+        wb.close()
+
+    original_validate = review_metrics.validate_review_workbook
+
+    def validate_then_change(*args, **kwargs):
+        result = original_validate(*args, **kwargs)
+        changed = load_workbook(workbook)
+        try:
+            changed.properties.title = "changed-after-validation"
+            changed.save(workbook)
+        finally:
+            changed.close()
+        return result
+
+    monkeypatch.setattr(
+        review_metrics, "validate_review_workbook", validate_then_change
+    )
+
+    with pytest.raises(ReviewMetricsError, match="changed after validation"):
+        evaluate_review_workbook(workbook, store)

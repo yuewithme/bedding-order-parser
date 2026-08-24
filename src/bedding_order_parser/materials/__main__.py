@@ -10,6 +10,10 @@ from pathlib import Path
 from bedding_order_parser.exceptions import BeddingOrderParserError
 from bedding_order_parser.materials.hybrid_matcher import match_orders
 from bedding_order_parser.materials.match_writer import write_match_outputs
+from bedding_order_parser.materials.review_metrics import (
+    evaluate_review_workbook,
+    write_review_metrics,
+)
 from bedding_order_parser.materials.review_validator import validate_review_workbook
 from bedding_order_parser.materials.review_workbook import build_review_workbook
 from bedding_order_parser.materials.store import build_material_store
@@ -35,6 +39,7 @@ def build_parser() -> argparse.ArgumentParser:
     build_index.add_argument("--model", default="BAAI/bge-m3")
     build_index.add_argument("--device", default="cpu")
     build_index.add_argument("--batch-size", type=int, default=16)
+    build_index.add_argument("--checkpoint-dir", type=Path)
     build_index.add_argument("--overwrite", action="store_true")
 
     search = subparsers.add_parser(
@@ -71,6 +76,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validate_review.add_argument("--workbook", required=True, type=Path)
     validate_review.add_argument("--store", required=True, type=Path)
+
+    evaluate_review = subparsers.add_parser(
+        "evaluate-review",
+        help="Calculate aggregate ranking metrics from a validated review workbook.",
+    )
+    evaluate_review.add_argument("--workbook", required=True, type=Path)
+    evaluate_review.add_argument("--store", required=True, type=Path)
+    evaluate_review.add_argument("--output", required=True, type=Path)
+    evaluate_review.add_argument("--overwrite", action="store_true")
     return parser
 
 
@@ -100,6 +114,7 @@ def main(argv: list[str] | None = None) -> int:
                 device=args.device,
                 batch_size=args.batch_size,
                 overwrite=args.overwrite,
+                checkpoint_dir=args.checkpoint_dir,
             )
             print(f"Model: {result.manifest['model']['name']}")
             print(f"Revision: {result.manifest['model']['revision']}")
@@ -161,6 +176,13 @@ def main(argv: list[str] | None = None) -> int:
             result = validate_review_workbook(args.workbook, args.store)
             print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
             return 0 if result.ok else 1
+
+        if args.command == "evaluate-review":
+            result = evaluate_review_workbook(args.workbook, args.store)
+            output = write_review_metrics(result, args.output, overwrite=args.overwrite)
+            print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
+            print(f"Metrics: {output}")
+            return 0
     except BeddingOrderParserError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

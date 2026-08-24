@@ -46,6 +46,15 @@ def test_specs_are_windowed_and_do_not_bundle_business_resources() -> None:
         assert forbidden not in text
 
 
+def test_pyinstaller_entry_uses_the_frozen_worker_dispatcher() -> None:
+    source = (PROJECT_ROOT / "packaging" / "desktop_entry.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "bedding_order_parser.desktop.entrypoint" in source
+    assert "bedding_order_parser.desktop.launcher" not in source
+
+
 def test_architecture_does_not_migrate_to_fastapi_or_uvicorn() -> None:
     desktop_sources = "\n".join(
         path.read_text(encoding="utf-8")

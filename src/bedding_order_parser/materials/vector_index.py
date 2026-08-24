@@ -19,6 +19,10 @@ from bedding_order_parser.materials.embedding_model import (
     EmbeddingAdapter,
     SentenceTransformerEmbeddingAdapter,
 )
+from bedding_order_parser.materials.embedding_checkpoints import (
+    CHECKPOINT_SCHEMA_VERSION,
+    EmbeddingCheckpointStore,
+)
 from bedding_order_parser.materials.faiss_io import write_faiss_index
 from bedding_order_parser.materials.loader import compute_sha256
 
@@ -64,6 +68,7 @@ def build_vector_indexes(
     batch_size: int = 16,
     overwrite: bool = False,
     adapter: EmbeddingAdapter | None = None,
+    checkpoint_dir: str | Path | None = None,
 ) -> VectorIndexBuildResult:
     """Build full and duvet-cover IndexFlatIP indexes in JSONL order."""
     if batch_size <= 0:
@@ -98,6 +103,31 @@ def build_vector_indexes(
             f"Embedding adapter model mismatch: {embedding.model_name!r} != {model_name!r}"
         )
 
+    encode_window = max(batch_size, batch_size * 32)
+    checkpoint_root = Path(
+        checkpoint_dir
+        or target.parent / f".{target.name}.embedding-checkpoints"
+    ).expanduser().resolve()
+    if _paths_overlap(checkpoint_root, target):
+        raise VectorIndexError(
+            "Embedding checkpoint directory and final output must not overlap."
+        )
+    checkpoint_store = EmbeddingCheckpointStore(
+        checkpoint_root,
+        {
+            "source_hashes": source_hashes_before,
+            "source_csv_sha256": source_csv_sha256,
+            "document_count": len(documents),
+            "model_name": embedding.model_name,
+            "model_revision": embedding.revision,
+            "device": embedding.device,
+            "dimension": int(embedding.dimension),
+            "normalized": True,
+            "batch_size": batch_size,
+            "encode_window": encode_window,
+        },
+    )
+
     parent = target.parent
     parent.mkdir(parents=True, exist_ok=True)
     temp_dir = parent / f".{target.name}.{uuid.uuid4().hex}.tmp"
@@ -105,7 +135,13 @@ def build_vector_indexes(
     backup_dir: Path | None = None
     try:
         all_index, duvet_index, all_mapping, duvet_mapping, dimension = (
-            _encode_and_index(documents, embedding, batch_size)
+            _encode_and_index(
+                documents,
+                embedding,
+                batch_size,
+                encode_window=encode_window,
+                checkpoint_store=checkpoint_store,
+            )
         )
         if all_index.ntotal != len(documents):
             raise VectorIndexError("Full FAISS index record count mismatch.")
@@ -149,6 +185,9 @@ def build_vector_indexes(
                 "batch_size": batch_size,
                 "duration_seconds": round(duration, 3),
                 "peak_memory_if_available": None,
+                "checkpoint_schema_version": CHECKPOINT_SCHEMA_VERSION,
+                "encoded_chunks": checkpoint_store.encoded_chunks,
+                "reused_chunks": checkpoint_store.reused_chunks,
             },
         }
         _write_json(temp_dir / MANIFEST_NAME, manifest)
@@ -162,6 +201,7 @@ def build_vector_indexes(
         backup_dir = _commit_directory(temp_dir, target, overwrite=overwrite)
         if backup_dir is not None:
             shutil.rmtree(backup_dir)
+        checkpoint_store.cleanup_after_success()
         return VectorIndexBuildResult(
             output_dir=target,
             manifest_path=target / MANIFEST_NAME,
@@ -182,6 +222,9 @@ def _encode_and_index(
     documents: Sequence[MaterialDocument],
     adapter: EmbeddingAdapter,
     batch_size: int,
+    *,
+    encode_window: int,
+    checkpoint_store: EmbeddingCheckpointStore,
 ) -> tuple[
     faiss.IndexFlatIP,
     faiss.IndexFlatIP,
@@ -200,18 +243,23 @@ def _encode_and_index(
     all_mapping: list[dict[str, Any]] = []
     duvet_mapping: list[dict[str, Any]] = []
 
-    encode_window = max(batch_size, batch_size * 32)
     for start in range(0, len(documents), encode_window):
         batch_documents = documents[start : start + encode_window]
-        vectors = adapter.encode(
-            [document.text for document in batch_documents],
-            batch_size=batch_size,
-        )
+        end = start + len(batch_documents)
+        vectors = checkpoint_store.load(start, end, dimension=dimension)
+        loaded_from_checkpoint = vectors is not None
+        if not loaded_from_checkpoint:
+            vectors = adapter.encode(
+                [document.text for document in batch_documents],
+                batch_size=batch_size,
+            )
         vectors = _validate_vectors(
             vectors,
             expected_rows=len(batch_documents),
             expected_dimension=dimension,
         )
+        if not loaded_from_checkpoint:
+            checkpoint_store.save(start, end, vectors)
         all_index.add(vectors)
         duvet_positions = [
             index
@@ -417,6 +465,10 @@ def _load_json(path: Path) -> dict[str, Any]:
 def _require_file(path: Path, label: str) -> None:
     if not path.is_file():
         raise VectorIndexError(f"{label} does not exist: {path}")
+
+
+def _paths_overlap(left: Path, right: Path) -> bool:
+    return left == right or left in right.parents or right in left.parents
 
 
 def _display_path(path: str | Path) -> str:

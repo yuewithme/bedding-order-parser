@@ -189,13 +189,23 @@ def _validate_review_row(
         errors.append(ValidationIssue("error", audit_id, f"审核结论不在允许选项内：{conclusion}"))
     if correct_code and correct_code not in material_codes:
         errors.append(ValidationIssue("error", audit_id, f"正确物料编码不存在于SQLite：{correct_code}"))
-    if conclusion == "推荐编码正确" and correct_code != recommended:
-        errors.append(ValidationIssue("error", audit_id, "推荐编码正确时，正确物料编码必须等于推荐物料编码。"))
+    if conclusion == "推荐编码正确":
+        if not correct_code:
+            errors.append(ValidationIssue("error", audit_id, "选择推荐编码正确时必须填写正确物料编码。"))
+        elif correct_code != recommended:
+            errors.append(ValidationIssue("error", audit_id, "推荐编码正确时，正确物料编码必须等于推荐物料编码。"))
     if conclusion == "Top候选中其他编码正确":
         if not correct_code:
             errors.append(ValidationIssue("error", audit_id, "选择Top候选中其他编码正确时必须填写正确物料编码。"))
         elif correct_code not in candidate_codes.get(audit_id, set()):
             errors.append(ValidationIssue("error", audit_id, "正确物料编码不在该订单Top 10候选中。"))
+    if conclusion == "Top候选外编码正确":
+        if not correct_code:
+            errors.append(ValidationIssue("error", audit_id, "选择Top候选外编码正确时必须填写正确物料编码。"))
+        elif correct_code in candidate_codes.get(audit_id, set()):
+            errors.append(ValidationIssue("error", audit_id, "Top候选外正确编码不能出现在该订单Top 10候选中。"))
+    if conclusion == "物料库不存在对应物料" and correct_code:
+        errors.append(ValidationIssue("error", audit_id, "物料库不存在对应物料时不得填写正确物料编码。"))
     if conclusion == "订单字段解析错误" and not fix_fields:
         errors.append(ValidationIssue("error", audit_id, "订单字段解析错误时必须填写需要修正的订单字段。"))
     if not conclusion and correct_code:
@@ -208,6 +218,5 @@ def _text(value: object) -> str:
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return str(value).strip()
-
 
 

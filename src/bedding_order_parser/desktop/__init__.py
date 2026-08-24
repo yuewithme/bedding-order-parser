@@ -3,7 +3,7 @@
 
 def main() -> int:
     """Import the desktop runtime only when the entry point is invoked."""
-    from bedding_order_parser.desktop.launcher import main as run_desktop
+    from bedding_order_parser.desktop.entrypoint import main as run_desktop
 
     return run_desktop()
 

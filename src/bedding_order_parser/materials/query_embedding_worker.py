@@ -39,6 +39,9 @@ class QueryEmbeddingWorkerCancelled(QueryEmbeddingWorkerError):
     """Raised when the parent requests cooperative worker cancellation."""
 
 
+QUERY_BATCH_SIZE = 8
+
+
 def run_worker(
     request_path: str | Path,
     response_path: str | Path,
@@ -74,11 +77,18 @@ def run_worker(
         "error_type": "",
         "error_summary": "",
         "traceback_summary": [],
+        "timings": {
+            "model_load_seconds": 0.0,
+            "encoding_seconds": 0.0,
+            "vector_write_seconds": 0.0,
+            "total_seconds": 0.0,
+        },
     }
     _write_json_atomic(response_file, running)
     cancel_file = request_file.parent / "cancel.requested"
     _check_cancel(cancel_file)
 
+    model_load_started = time.perf_counter()
     adapter = adapter_factory(
         MODEL_NAME,
         device=DEVICE,
@@ -86,28 +96,47 @@ def run_worker(
         local_files_only=True,
     )
     _validate_adapter(adapter)
-    running = {**running, "stage": "encoding_queries"}
+    model_load_seconds = time.perf_counter() - model_load_started
+    running = {
+        **running,
+        "stage": "encoding_queries",
+        "timings": {
+            **running["timings"],
+            "model_load_seconds": round(model_load_seconds, 6),
+        },
+    }
     _write_json_atomic(response_file, running)
     rows: list[np.ndarray] = []
-    for query in queries:
+    encoding_seconds = 0.0
+    for start_index in range(0, len(queries), QUERY_BATCH_SIZE):
+        batch = queries[start_index : start_index + QUERY_BATCH_SIZE]
         _check_cancel(cancel_file)
         running = {
             **running,
-            "active_query_id": query["query_id"],
+            "active_query_id": batch[0]["query_id"],
             "completed_query_count": len(rows),
         }
         _write_json_atomic(response_file, running)
-        vector = validate_normalized_float32_vectors(
-            adapter.encode([query["query_text"]], batch_size=1),
-            expected_rows=1,
+        encoding_started = time.perf_counter()
+        vectors = validate_normalized_float32_vectors(
+            adapter.encode(
+                [query["query_text"] for query in batch],
+                batch_size=len(batch),
+            ),
+            expected_rows=len(batch),
             expected_dimension=DIMENSION,
         )
-        rows.append(vector[0])
+        encoding_seconds += time.perf_counter() - encoding_started
+        rows.extend(vectors)
         running = {
             **running,
             "active_query_id": "",
             "completed_query_count": len(rows),
-            "last_completed_query_id": query["query_id"],
+            "last_completed_query_id": batch[-1]["query_id"],
+            "timings": {
+                **running["timings"],
+                "encoding_seconds": round(encoding_seconds, 6),
+            },
         }
         _write_json_atomic(response_file, running)
     _check_cancel(cancel_file)
@@ -115,18 +144,27 @@ def run_worker(
     running = {**running, "stage": "writing_vectors"}
     _write_json_atomic(response_file, running)
     vectors = np.ascontiguousarray(np.vstack(rows), dtype=np.float32)
+    vector_write_started = time.perf_counter()
     _write_vectors_atomic(vector_file, vectors)
+    vector_write_seconds = time.perf_counter() - vector_write_started
+    elapsed_seconds = round(time.perf_counter() - started, 6)
     completed = {
         **running,
         "status": "completed",
         "stage": "completed",
         "completed_at": _now(),
-        "elapsed_seconds": round(time.perf_counter() - started, 6),
+        "elapsed_seconds": elapsed_seconds,
         "shape": [int(value) for value in vectors.shape],
         "dtype": str(vectors.dtype),
         "completed_query_count": len(rows),
         "last_completed_query_id": queries[-1]["query_id"],
         "active_query_id": "",
+        "timings": {
+            "model_load_seconds": round(model_load_seconds, 6),
+            "encoding_seconds": round(encoding_seconds, 6),
+            "vector_write_seconds": round(vector_write_seconds, 6),
+            "total_seconds": elapsed_seconds,
+        },
     }
     _write_json_atomic(response_file, completed)
     return completed
@@ -308,6 +346,7 @@ def _write_failure_response(path: Path, exc: BaseException) -> None:
         "error_type": error_type,
         "error_summary": summary,
         "traceback_summary": _traceback_summary(exc),
+        "timings": dict(previous.get("timings", {})),
     }
     try:
         _write_json_atomic(path.expanduser().resolve(), payload)

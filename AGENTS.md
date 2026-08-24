@@ -2,7 +2,7 @@
 
 ## 项目边界
 
-- 项目目录固定为 `D:\AI-Learning\Projects\bedding-order-parser`。
+- 项目目录固定为 `D:\AI lianxi\床品Excel解析`。
 - `D:\AI-Learning\Projects\Day01` 是冻结边界：不得修改、清理、提交或替换其中内容。
 - 开始任务先读取本文件、当前任务指定的合同/报告，并检查 `git status --short`。
 - 保留用户已有修改；发现与当前任务相关且未说明的修改时停止并报告。

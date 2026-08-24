@@ -1,6 +1,6 @@
-"""Run the desktop application."""
+"""Run the desktop application or its isolated worker mode."""
 
-from bedding_order_parser.desktop.launcher import main
+from bedding_order_parser.desktop.entrypoint import main
 
 
 if __name__ == "__main__":

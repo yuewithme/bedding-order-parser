@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ctypes
 import json
+import math
 import os
 import re
 import signal
@@ -413,18 +414,27 @@ def _build_worker_command(
     request_path: Path,
     response_path: Path,
     vectors_path: Path,
+    *,
+    frozen: bool | None = None,
 ) -> list[str]:
-    return [
+    frozen_runtime = bool(getattr(sys, "frozen", False)) if frozen is None else frozen
+    command = [
         str(executable),
-        "-m",
-        "bedding_order_parser.materials.query_embedding_worker",
+        "--embedding-worker" if frozen_runtime else "-m",
+    ]
+    if not frozen_runtime:
+        command.append("bedding_order_parser.materials.query_embedding_worker")
+    command.extend(
+        [
         "--request",
         str(request_path),
         "--response",
         str(response_path),
         "--vectors",
         str(vectors_path),
-    ]
+        ]
+    )
+    return command
 
 
 def _request_and_stop(
@@ -699,6 +709,7 @@ def _failure_diagnostics(
         "worker_started_at": str(response.get("started_at", "")),
         "worker_completed_at": str(response.get("completed_at", "")),
         "elapsed_seconds": round(elapsed, 6),
+        "worker_timings": _safe_worker_timings(response.get("timings")),
     }
 
 
@@ -745,7 +756,28 @@ def _success_diagnostics(
         "worker_started_at": str(response.get("started_at", "")),
         "worker_completed_at": str(response.get("completed_at", "")),
         "elapsed_seconds": round(elapsed, 6),
+        "worker_timings": _safe_worker_timings(response.get("timings")),
     }
+
+
+def _safe_worker_timings(value: object) -> dict[str, float]:
+    if not isinstance(value, dict):
+        return {}
+    result: dict[str, float] = {}
+    for key in (
+        "model_load_seconds",
+        "encoding_seconds",
+        "vector_write_seconds",
+        "total_seconds",
+    ):
+        raw = value.get(key)
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+            return {}
+        number = float(raw)
+        if not math.isfinite(number) or number < 0:
+            return {}
+        result[key] = number
+    return result
 
 
 def _is_retryable_pre_encode_exit(diagnostics: dict[str, Any]) -> bool:

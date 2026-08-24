@@ -1,6 +1,6 @@
 ---
 name: bedding-gate
-description: Run a Bedding Order Parser Gate task with strict contracts, evidence validation, testing, reporting, Git discipline, and explicit real-API safety. Use for project Gate audits, designs, offline implementations, UI work, or authorized real-provider acceptance in D:\AI-Learning\Projects\bedding-order-parser.
+description: Run a Bedding Order Parser Gate task with strict contracts, evidence validation, testing, reporting, Git discipline, and explicit real-API safety. Use for project Gate audits, designs, offline implementations, UI work, or authorized real-provider acceptance in D:\AI lianxi\床品Excel解析.
 ---
 
 # Bedding Gate Workflow

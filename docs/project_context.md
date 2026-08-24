@@ -6,9 +6,9 @@
 - 英文项目名称：Bedding Order Parser
 - 正式课题名称：基于LLM与向量检索的床品订单智能解析与物料匹配系统研发
 - Python 包名：`bedding_order_parser`
-- 项目目录：`D:\AI-Learning\Projects\bedding-order-parser`
+- 项目目录：`D:\AI lianxi\床品Excel解析`
 
-本项目是一个独立 Python 项目，当前仅在 Windows 11、VS Code 和终端中开发。当前没有 GUI、Web 前端、API 服务或 Agent。
+本项目是一个独立 Python 项目，当前在 Windows 11 上开发，已包含命令行、内置 Web 服务和 PyWebView 桌面入口。
 
 ## 2. 企业业务场景
 
@@ -79,7 +79,7 @@ Gate 1 的目标是从真实 PI Excel 中筛选被套商品，并输出用户指
 - 已有冒烟测试；
 - `data/input/` 和 `data/output/` 通过 `.gitkeep` 保留空目录结构。
 
-当前已实现 Gate 1 离线规则解析、被套过滤和最终 JSON 导出。当前没有实现 LLM 抽取、物料匹配、ERP 对比、API、前端或 Agent。
+当前已实现确定性 Excel 解析、可选整单 AI 增强、字典验证、BGE-M3/FAISS 物料召回、人工审核表、内置 Web UI 和 PyWebView 桌面壳。物料匹配只产出候选与审核结果，不自动写回 ERP。
 
 ## 7. 当前依赖
 

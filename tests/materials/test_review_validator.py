@@ -186,6 +186,31 @@ def test_materials_cli_build_and_validate_review(tmp_path) -> None:
     payload = json.loads(validate_result.stdout)
     assert payload["ok"] is True
 
+    metrics_path = tmp_path / "review_metrics.json"
+    evaluate_result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "bedding_order_parser.materials",
+            "evaluate-review",
+            "--workbook",
+            str(workbook),
+            "--store",
+            str(store),
+            "--output",
+            str(metrics_path),
+        ],
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+
+    assert evaluate_result.returncode == 0
+    metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    assert metrics["counts"]["positive_truth_rows"] == 1
+    assert metrics["ranking"]["top1_rate"] == 1.0
+    assert "MAT-1" not in metrics_path.read_text(encoding="utf-8")
+
 
 def test_build_review_requires_overwrite(tmp_path) -> None:
     records = [record(1, "unique_best_candidate", [candidate("MAT-1")])]

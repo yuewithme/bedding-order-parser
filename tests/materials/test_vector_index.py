@@ -66,6 +66,18 @@ class FailingEmbeddingAdapter(FakeEmbeddingAdapter):
         raise RuntimeError("fake encoding failure")
 
 
+class CountingEmbeddingAdapter(FakeEmbeddingAdapter):
+    def __init__(self, *, fail_on_call: int | None = None) -> None:
+        self.fail_on_call = fail_on_call
+        self.batch_lengths: list[int] = []
+
+    def encode(self, texts: Sequence[str], *, batch_size: int) -> np.ndarray:
+        self.batch_lengths.append(len(texts))
+        if self.fail_on_call == len(self.batch_lengths):
+            raise RuntimeError("planned resumable encoding failure")
+        return super().encode(texts, batch_size=batch_size)
+
+
 def document(
     code: str,
     text: str,
@@ -343,6 +355,120 @@ def test_failed_overwrite_preserves_previous_complete_index(tmp_path) -> None:
 
     assert compute_sha256(output_dir / MANIFEST_NAME) == manifest_sha
     assert not list(tmp_path.glob(".vector_index.*.tmp"))
+
+
+def test_failed_build_resumes_verified_embedding_chunks(tmp_path) -> None:
+    documents = [
+        document(
+            f"{index:04d}",
+            "alpha" if index % 2 else "beta",
+            source_row=index + 2,
+            category="被套",
+        )
+        for index in range(33)
+    ]
+    documents_path, store_path = write_inputs(tmp_path, documents)
+    output_dir = tmp_path / "vector_index"
+    checkpoint_dir = tmp_path / "embedding-checkpoints"
+    first = CountingEmbeddingAdapter(fail_on_call=2)
+
+    with pytest.raises(RuntimeError, match="planned resumable"):
+        build_vector_indexes(
+            documents_path,
+            store_path,
+            output_dir,
+            model_name="fake/bge",
+            batch_size=1,
+            adapter=first,
+            checkpoint_dir=checkpoint_dir,
+        )
+
+    assert first.batch_lengths == [32, 1]
+    assert len(list(checkpoint_dir.rglob("vectors-*.npy"))) == 1
+    checkpoint_manifests = list(checkpoint_dir.rglob("checkpoint_manifest.json"))
+    assert len(checkpoint_manifests) == 1
+    checkpoint_text = checkpoint_manifests[0].read_text(encoding="utf-8")
+    assert "alpha" not in checkpoint_text
+    assert "beta" not in checkpoint_text
+
+    resumed = CountingEmbeddingAdapter()
+    result = build_vector_indexes(
+        documents_path,
+        store_path,
+        output_dir,
+        model_name="fake/bge",
+        batch_size=1,
+        adapter=resumed,
+        checkpoint_dir=checkpoint_dir,
+    )
+
+    assert resumed.batch_lengths == [1]
+    assert result.manifest["build"]["checkpoint_schema_version"] == "1.0"
+    assert result.manifest["build"]["reused_chunks"] == 1
+    assert result.manifest["build"]["encoded_chunks"] == 1
+    assert not checkpoint_dir.exists()
+    assert read_faiss_index(output_dir / ALL_INDEX_NAME).ntotal == 33
+
+
+def test_corrupt_checkpoint_chunk_is_reencoded(tmp_path) -> None:
+    documents = [
+        document(
+            f"{index:04d}",
+            "alpha" if index % 2 else "beta",
+            source_row=index + 2,
+            category="被套",
+        )
+        for index in range(33)
+    ]
+    documents_path, store_path = write_inputs(tmp_path, documents)
+    output_dir = tmp_path / "vector_index"
+    checkpoint_dir = tmp_path / "embedding-checkpoints"
+
+    with pytest.raises(RuntimeError, match="planned resumable"):
+        build_vector_indexes(
+            documents_path,
+            store_path,
+            output_dir,
+            model_name="fake/bge",
+            batch_size=1,
+            adapter=CountingEmbeddingAdapter(fail_on_call=2),
+            checkpoint_dir=checkpoint_dir,
+        )
+    checkpoint_chunk = next(checkpoint_dir.rglob("vectors-*.npy"))
+    checkpoint_chunk.write_bytes(b"corrupt checkpoint")
+
+    resumed = CountingEmbeddingAdapter()
+    result = build_vector_indexes(
+        documents_path,
+        store_path,
+        output_dir,
+        model_name="fake/bge",
+        batch_size=1,
+        adapter=resumed,
+        checkpoint_dir=checkpoint_dir,
+    )
+
+    assert resumed.batch_lengths == [32, 1]
+    assert result.manifest["build"]["reused_chunks"] == 0
+    assert result.manifest["build"]["encoded_chunks"] == 2
+    assert not checkpoint_dir.exists()
+
+
+def test_checkpoint_directory_cannot_overlap_final_output(tmp_path) -> None:
+    documents_path, store_path = write_inputs(tmp_path, sample_documents())
+    output_dir = tmp_path / "vector_index"
+
+    with pytest.raises(VectorIndexError, match="must not overlap"):
+        build_vector_indexes(
+            documents_path,
+            store_path,
+            output_dir,
+            model_name="fake/bge",
+            adapter=FakeEmbeddingAdapter(),
+            checkpoint_dir=output_dir,
+        )
+
+    assert not output_dir.exists()
 
 
 def test_artifact_hashes_and_source_hashes_are_recorded(tmp_path) -> None:
