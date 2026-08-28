@@ -21,12 +21,14 @@
 - [x] 历史与敏感信息审计。
 - [x] 依赖锁、定向测试和完整离线测试验证。
 - [x] 修复两项前端测试对 Windows CRLF 检出的兼容性。
-- [ ] 提交与 GitHub 推送。
-- [ ] 远端一致性复核。
+- [x] 提交与 GitHub 推送。
+- [x] 远端一致性复核。
 
 ## 完成结果
 
 完成 Git 对象、历史路径、敏感信息、忽略业务数据和依赖锁审计。最终验证发现 `app.js` 在 Windows 检出为 CRLF 时，两项前端测试的常量截取只识别 LF；已最小修复为同时接受 LF/CRLF，不改产品代码。
+
+已创建公开仓库 `https://github.com/yuewithme/bedding-order-parser`。归档准备提交为 `214fddec6313933de64b0ccc16b1edd16abc9bf8`；首次推送遇到 GitHub `Internal Server Error`，重试后成功。本地 HEAD、`origin/master`、`git ls-remote` 和 GitHub API 均返回该提交，首次远端一致性复核通过。本日志和 Gate 报告的闭环补记由后续文档提交承载。
 
 ## 验证情况
 

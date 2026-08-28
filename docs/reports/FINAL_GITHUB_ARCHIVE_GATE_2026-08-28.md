@@ -63,4 +63,8 @@
 
 ## 提交、远端与最终工作区
 
-待暂存审计、提交、创建公开远端和推送后补记。
+- 归档准备提交：`214fddec6313933de64b0ccc16b1edd16abc9bf8`，5 个必要文件，提交后工作区干净。
+- GitHub 仓库：`https://github.com/yuewithme/bedding-order-parser`，可见性 `PUBLIC`，默认分支 `master`。
+- 首次 `git push -u origin master` 被 GitHub 服务端 `Internal Server Error` 拒绝，远端仍为空；第二次重试成功建立 `master`。
+- 首次推送后核验：本地 HEAD、`origin/master`、`git ls-remote --heads origin master` 和 GitHub commits API 均为 `214fddec6313933de64b0ccc16b1edd16abc9bf8`，四方一致。
+- 本报告的推送结果补记由本报告所在的闭环文档提交承载；该提交的最终远端 HEAD 和工作区状态在交付前再次以命令核验。
