@@ -39,7 +39,10 @@
 
 ## 提交、推送与删除状态
 
-进行中。
+- 备份与验证记录提交：`e8a4b42afd2e4c50a01bea402faad48bdc7936b1`。
+- 该提交已推送 GitHub；本地 HEAD、`origin/master`、`git ls-remote --heads origin master` 和 GitHub commits API 四方一致。
+- 本报告的推送补记由本报告所在的闭环文档提交承载，其最终远端 HEAD 在交付前再次核对。
+- 本地删除：未执行；等待用户明确确认已保存恢复口令。
 
 ## 未执行事项
 

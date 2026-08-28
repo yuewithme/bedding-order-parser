@@ -18,13 +18,15 @@
 - [x] 已核对 GitHub 归档 HEAD 和干净工作区。
 - [x] 已确认核心备份范围和项目外备份位置。
 - [x] 加密备份与恢复验证。
-- [ ] 退役记录提交与推送。
+- [x] 退役记录提交与推送。
 - [ ] 恢复口令交付与用户确认。
 - [ ] 本地回收站删除。
 
 ## 完成结果
 
 已在 `%USERPROFILE%\Documents\BeddingOrderParser-Backup` 创建 AES-256-GCM 加密备份、SHA-256 文件、无密钥恢复脚本和恢复说明。恢复口令未写入磁盘或 Git。
+
+备份与验证记录提交为 `e8a4b42afd2e4c50a01bea402faad48bdc7936b1`，已成功推送。本地 HEAD、`origin/master`、`git ls-remote` 和 GitHub API 四方一致。当前仅等待恢复口令交付及用户确认，未执行本地删除。
 
 ## 验证情况
 
