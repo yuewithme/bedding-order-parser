@@ -41,8 +41,9 @@ function extractConst(name) {
   const start = source.indexOf(marker);
   if (start < 0) throw new Error(`missing ${name}`);
   const valueStart = start + marker.length;
-  const end = source.indexOf(";\n", valueStart);
-  if (end < 0) throw new Error(`unterminated ${name}`);
+  const terminator = source.slice(valueStart).match(/;\r?\n/);
+  if (!terminator) throw new Error(`unterminated ${name}`);
+  const end = valueStart + terminator.index;
   return new Function(`return (${source.slice(valueStart, end)});`)();
 }
 
